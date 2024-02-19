@@ -35,10 +35,9 @@
         <div class="form-group" :class="{ 'form-group--error': $v.form.phone.$error }">
             <label>Номер телефона* </label>
             <input type="tel" @input="enteringPhoneNumber" placeholder="+7 (___) ___ __ __" v-model.trim="$v.form.phone.$model" />
-            <div class="error" v-if="submitted && !$v.form.phone.validPhoneNumber">Неверный формат номера телефона</div>
+            <div class="error" v-if="!$v.form.phone.phoneNumber">Неверный формат номера телефона</div>
             <div class="error" v-else-if="submitted && !$v.form.phone.required">{{requiredMsg}}</div>
         </div>
-
         <label for="sex">Пол</label>
         <select id="sex" v-model="form.sex">
           <option>м</option>
@@ -76,6 +75,7 @@
             <label>Индекс </label>
             <input type="number" v-model.trim="$v.form.index.$model" >
             <div class="error" v-if="submitted && !$v.form.index.validLength">Длина должна быть равна 6 знакам</div>
+            <div class="error" v-else-if="submitted && !$v.form.index.positiveNum">{{errorNegativeNumMsg}}</div>
             <div class="error" v-else-if="!$v.form.index.decimal">{{errorNumMsg}}</div>
         </div>
 
@@ -116,6 +116,7 @@
             <label>Серия </label>
             <input type="number" v-model.trim="$v.form.series.$model" >
             <div class="error" v-if="submitted && !$v.form.series.validLength">Длина должна быть равна 4 знакам</div>
+            <div class="error" v-else-if="submitted && !$v.form.series.positiveNum">{{errorNegativeNumMsg}}</div>
             <div class="error" v-else-if="!$v.form.series.decimal">{{errorNumMsg}}</div>
         </div>
 
@@ -123,6 +124,7 @@
             <label>Номер </label>
             <input type="number" v-model.trim="$v.form.number.$model" >
             <div class="error" v-if="submitted && !$v.form.number.validLength">Длина должна быть равна 6 знакам</div>
+            <div class="error" v-else-if="submitted && !$v.form.number.positiveNum">{{errorNegativeNumMsg}}</div>
             <div class="error" v-else-if="!$v.form.number.decimal">{{errorNumMsg}}</div>
         </div>
 
@@ -140,15 +142,18 @@
 
     <span style="text-align: left;">*Поле обязательное для заполнения</span>
     <p>
-      <input type="submit" value="Отправить">  
+      <input type="submit" id="submit-input" value="Отправить">  
     </p>
 
   </form>
 </template>
 
 <script>
-import { required, decimal } from 'vuelidate/lib/validators'
-
+import { required, decimal, helpers } from 'vuelidate/lib/validators'
+const phoneNumber = helpers.regex(
+  "serial",
+  /^7-[0-9]{3}-[0-9]{3}-[0-9]{4}/
+)
 export default {
   name: 'ClientForm',
   props: {
@@ -163,6 +168,7 @@ export default {
       requiredMsg: 'Поле обязательно для заполнения',
       errorDatedMsg: 'Неправильная дата',
       errorNumdMsg: 'Требуется ввести число',
+      errorNegativeNumMsg: 'Число не может быть отрицательным',
       form: {
         lastname: '',
         name: '',
@@ -208,6 +214,7 @@ export default {
       },
       phone: {
         required,
+        phoneNumber,
         validPhoneNumber(/*value*/) {
           return true;
           //return value[0] === '7' && value.match(/(?:\+|\d)[\d\-() ]{9,}\d/g);
@@ -219,7 +226,11 @@ export default {
       index: {
         decimal,
         validLength(value) {
-          return value.length != 0 && value.length == 6;
+          return value.length == 0 ? true : value.length == 6; 
+          //return value.length != 0 && value.length != 6;
+        },
+        positiveNum(value) {
+          return value[0] !== '-';
         }
       },
       city: {
@@ -231,13 +242,19 @@ export default {
       series: {
         decimal,
         validLength(value) {
-          return value.length != 0 && value.length == 4;
+          return value.length == 0 ? true : value.length == 4; 
+        },
+        positiveNum(value) {
+          return value[0] !== '-';
         }
       },
       number: {
         decimal,
         validLength(value) {
-          return value.length != 0 && value.length == 6;
+          return value.length == 0 ? true : value.length == 6; 
+        },
+        positiveNum(value) {
+          return value[0] !== '-';
         }
       },
       issueDate: {
@@ -271,11 +288,9 @@ export default {
       console.log("Data: \n" + JSON.stringify(this.form));
     },
     enteringPhoneNumber() {
-      // var x = this.form.phone.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,4})/);
-      // console.log("Val:", x)
-      // this.form.phone = x[1] + !x[3] ? x[2] : '(' + x[2] + ') ' + x[3] + (x[4] ? '-' + x[4] : '')
-      let x = this.form.phone.replace(/\D/g, '').match(/(\d{0,3})(\d{0,3})(\d{0,4})/);
-      this.form.phone = !x[2] ? x[1] : '(' + x[1] + ') ' + x[2] + (x[3] ? '-' + x[3] : '');
+      let x = this.form.phone.replace(/\D/g, '').match(/(\d{0,1})(\d{0,3})(\d{0,3})(\d{0,4})/);
+      console.log("Val:", x)
+      this.form.phone = x[1] + '-' + x[2] + '-' + x[3] + '-' + x[4]
     }
   }
 }
@@ -289,6 +304,7 @@ export default {
     display: flex;
     flex-direction: column;
     border-radius: 10px;
+    background: rgb(227, 229, 233);;
   }
   $back-color: rgb(118, 135, 190);
   .form-header{
@@ -297,6 +313,7 @@ export default {
     color: white;
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
+    border-bottom: 1px solid black;
   }
   .form-header h2 {
     margin: 1vh;
@@ -306,15 +323,21 @@ export default {
     display: block;
     padding-top: 0.7vh;
   }
-  .client-form select {
-    width: 100%;
-  }
   .form-section {
     width: 14vw;
+  }
+  .form-section select {
+    width: 100%;
+    background: rgb(243, 240, 240);
+    color: black;
+    border-radius: 5px;
   }
   .form-section input{
     display: inline-block;
     width: 100%;
+    background: rgb(243, 240, 240);
+    color: black;
+    border-radius: 5px;
   }
   .form-section h3{
     text-decoration: underline;
@@ -333,7 +356,7 @@ export default {
     background: rgb(35, 224, 76);
   }
   #submitModal {
-    width: 10vw;
+    width: 15vw;
     height: 5vh;
     color: white;
     position: absolute;
@@ -345,4 +368,25 @@ export default {
     border-radius: 5px;
     border: 1px solid black;
   }
+  #submit-input {
+    width: 15vmin;
+    height: 5vmin;
+    font-size: 1.1em;
+    background: rgb(243, 240, 240);
+    color: black;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+  .form-header {
+    height: auto;
+  }
+  @media only screen and (max-width: 950px) {
+  .form-body{
+    flex-direction: column;
+    align-items: center;
+  }
+  .form-section {
+    width: 80%;
+  }
+}
 </style>
